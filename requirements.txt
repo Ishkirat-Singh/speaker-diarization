@@ -1,0 +1,3 @@
+openai-whisper==20231117
+pyannote.audio
+torch==2.1.2
