@@ -58,5 +58,5 @@ def diarize_with_huggingface(audio_path):
         print(f"Extracted and combined segment for {speaker}")
 
 
-audio_path = "interview_short.wav"
+audio_path = "interview3.wav"
 diarization_result = diarize_with_huggingface(audio_path)
