@@ -1,22 +1,39 @@
 import os
+import time
 import json
 import torch
 import warnings
 from pydub import AudioSegment
 from dotenv import load_dotenv
-from huggingface_hub import login
+# from huggingface_hub import login
 from pyannote.audio import Pipeline
+from requests.exceptions import ReadTimeout
 
 warnings.filterwarnings("ignore")
 
 load_dotenv()
 
 HF_API_KEY = os.getenv("HF_API_KEY")
-login(token=HF_API_KEY)
+# login(token=HF_API_KEY)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=HF_API_KEY)
+def load_diarization_pipeline(retries=3, timeout=30):
+    for i in range(retries):
+        try:
+            pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization", use_auth_token=HF_API_KEY)
+            return pipeline
+        except ReadTimeout:
+            if i < retries - 1:
+                print(f"Timeout occurred. Retrying... ({i+1}/{retries})")
+                time.sleep(5)  # Wait before retrying
+            else:
+                raise
+        except Exception as e:
+            print(f"Error: {e}")
+            raise
+
+diarization_pipeline = load_diarization_pipeline()
 
 def diarize_with_huggingface(audio_path):
     diarization = diarization_pipeline(audio_path)
@@ -34,8 +51,6 @@ def diarize_with_huggingface(audio_path):
         }
         diarization_result["segments"].append(segment_info)
     
-    # diarization_results = json.dumps(diarization_result, indent=2)
-
     if not os.path.exists("speaker_segments"):
         os.makedirs("speaker_segments")
     
@@ -57,6 +72,7 @@ def diarize_with_huggingface(audio_path):
         combined_segment.export(output_path, format="wav")
         print(f"Extracted and combined segment for {speaker}")
 
-
 audio_path = "interview3.wav"
+start_time = time.time()
 diarization_result = diarize_with_huggingface(audio_path)
+print(f"Time taken: {time.time() - start_time:.2f} seconds")
